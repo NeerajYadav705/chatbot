@@ -1,11 +1,12 @@
+// Message.jsx
 export default function Message({ role, content }) {
   const isAssistant = role === 'assistant';
   
   return (
-    <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}>
-      <div className={`max-w-[85%] rounded-2xl px-5 py-3 ${isAssistant ? 
-        'bg-white text-gray-800 shadow-sm' : 
-        'bg-blue-600 text-white shadow-md'}`}
+    <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'} px-4`}>
+      <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${isAssistant ? 
+        'bg-gray-100 text-gray-900' : 
+        'bg-blue-600 text-black'}`}
       >
         {content.split('\n').map((paragraph, i) => (
           <p key={i} className={i > 0 ? 'mt-2' : ''}>

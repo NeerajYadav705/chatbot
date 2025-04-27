@@ -2,17 +2,55 @@
 export default function Message({ role, content }) {
   const isAssistant = role === 'assistant';
   
+  const formatContent = (text) => {
+    const paragraphs = text.split('\n');
+    return paragraphs.map((paragraph, i) => {
+      if (paragraph.trim() === '') return null;
+      
+      // Handle bullet points
+      if (paragraph.startsWith('* ')) {
+        return (
+          <ul key={i} className="list-disc ml-5 my-1">
+            <li>{formatText(paragraph.substring(2))}</li>
+          </ul>
+        );
+      }
+      
+      // Handle bold text between **
+      const formattedParagraph = formatText(paragraph);
+      
+      // Handle special notices
+      if (paragraph.startsWith('**Disclaimer:**') || paragraph.startsWith('ℹ️ Note:')) {
+        return (
+          <p key={i} className="text-xs italic text-gray-500 mt-2">
+            {formattedParagraph}
+          </p>
+        );
+      }
+      
+      return (
+        <p key={i} className={i > 0 ? 'mt-2' : ''}>
+          {formattedParagraph}
+        </p>
+      );
+    });
+  };
+  
+  const formatText = (text) => {
+    // Replace **bold** with strong tags
+    const parts = text.split(/\*\*(.*?)\*\*/g);
+    return parts.map((part, i) => 
+      i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+    );
+  };
+  
   return (
     <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'} px-4`}>
       <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${isAssistant ? 
         'bg-gray-100 text-gray-900' : 
         'bg-blue-600 text-black'}`}
       >
-        {content.split('\n').map((paragraph, i) => (
-          <p key={i} className={i > 0 ? 'mt-2' : ''}>
-            {paragraph}
-          </p>
-        ))}
+        {formatContent(content)}
         {isAssistant && content.includes('⚠️') && (
           <div className="mt-2 flex items-start">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500 mr-1 mt-0.5" viewBox="0 0 20 20" fill="currentColor">

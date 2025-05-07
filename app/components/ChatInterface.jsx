@@ -1,7 +1,21 @@
 // ChatInterface.jsx
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  FiUser, 
+  FiPlus, 
+  FiMessageSquare, 
+  FiArrowUp,
+  FiClock,
+  FiTrash2,
+  FiEdit,
+  FiSave,
+  FiSettings
+} from 'react-icons/fi';
+import { RiMentalHealthLine } from 'react-icons/ri';
 import Message from "./Message";
+import { MdCircle } from "react-icons/md";
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
@@ -9,27 +23,22 @@ export default function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
+  const [editingChatId, setEditingChatId] = useState(null);
+  const [editedTitle, setEditedTitle] = useState("");
   const messagesEndRef = useRef(null);
 
-  // Initialize with welcome message
   useEffect(() => {
     if (messages.length === 0 && !activeChat) {
-      setMessages([
-        {
-          role: "assistant",
-          content:
-            "Hello! I am your AI Health Assistant. How can I help you today?\n\n⚠️ Remember: I cannot diagnose conditions. For serious symptoms, consult a doctor immediately.",
-        },
-      ]);
+      setMessages([{
+        role: "assistant",
+        content: "Hello! I am your AI Health Assistant. How can I help you today?\n\n⚠️ Remember: I cannot diagnose conditions. For serious symptoms, consult a doctor immediately.",
+      }]);
     }
   }, [activeChat]);
 
-  // Save chats to localStorage
   useEffect(() => {
     const savedChats = localStorage.getItem('chatHistory');
-    if (savedChats) {
-      setChatHistory(JSON.parse(savedChats));
-    }
+    if (savedChats) setChatHistory(JSON.parse(savedChats));
   }, []);
 
   const saveChat = (messages) => {
@@ -47,9 +56,7 @@ export default function ChatInterface() {
   };
 
   const startNewChat = () => {
-    if (messages.length > 1) {
-      saveChat(messages);
-    }
+    if (messages.length > 1) saveChat(messages);
     setMessages([]);
     setActiveChat(null);
   };
@@ -60,6 +67,25 @@ export default function ChatInterface() {
       setMessages(chat.messages);
       setActiveChat(chatId);
     }
+  };
+
+  const deleteChat = (chatId) => {
+    const updatedHistory = chatHistory.filter(chat => chat.id !== chatId);
+    setChatHistory(updatedHistory);
+    localStorage.setItem('chatHistory', JSON.stringify(updatedHistory));
+    if (activeChat === chatId) {
+      setMessages([]);
+      setActiveChat(null);
+    }
+  };
+
+  const handleRenameChat = (chatId, newTitle) => {
+    const updatedHistory = chatHistory.map(chat => 
+      chat.id === chatId ? { ...chat, title: newTitle } : chat
+    );
+    setChatHistory(updatedHistory);
+    localStorage.setItem('chatHistory', JSON.stringify(updatedHistory));
+    setEditingChatId(null);
   };
 
   const handleSubmit = async (e) => {
@@ -77,29 +103,22 @@ export default function ChatInterface() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: updatedMessages.filter(msg => msg.role === "user"),
-        }),
+        body: JSON.stringify({ messages: updatedMessages.filter(msg => msg.role === "user") }),
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.error || "Request failed");
-      }
+      if (!response.ok) throw new Error(data?.error || "Request failed");
 
       const assistantMessage = { role: "assistant", content: data.content };
       const finalMessages = [...updatedMessages, assistantMessage];
       setMessages(finalMessages);
       
-      // Save chat if it's a new conversation
       if (!activeChat) {
         const newChatId = saveChat(finalMessages);
         setActiveChat(newChatId);
       } else {
-        // Update existing chat
         const updatedHistory = chatHistory.map(chat => 
-          chat.id === activeChat ? {...chat, messages: finalMessages} : chat
+          chat.id === activeChat ? { ...chat, messages: finalMessages } : chat
         );
         setChatHistory(updatedHistory);
         localStorage.setItem('chatHistory', JSON.stringify(updatedHistory));
@@ -108,18 +127,13 @@ export default function ChatInterface() {
       console.error("Chat Error:", error);
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: getErrorMessage(error),
+        content: error.message.includes("Failed to fetch") 
+          ? "Network error. Please check your connection."
+          : "I'm having trouble responding. Please try again."
       }]);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const getErrorMessage = (error) => {
-    if (error.message.includes("Failed to fetch")) {
-      return "Network error. Please check your connection.";
-    }
-    return "I'm having trouble responding. Please try again.";
   };
 
   useEffect(() => {
@@ -127,108 +141,170 @@ export default function ChatInterface() {
   }, [messages]);
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       {/* Sidebar */}
-      <div className="hidden md:flex flex-col w-64 border-r border-gray-200 bg-gray-50">
+      <motion.div 
+        className="hidden md:flex flex-col w-64 border-r border-gray-200 bg-white"
+        initial={{ x: -100 }}
+        animate={{ x: 0 }}
+        transition={{ type: 'spring', stiffness: 300 }}
+      >
         <div className="p-4">
-          <button 
+          <motion.button 
             onClick={startNewChat}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl shadow-lg hover:shadow-md transition-all"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <FiPlus className="text-xl" />
             New Chat
-          </button>
+          </motion.button>
         </div>
         
         <div className="flex-1 overflow-y-auto">
-          <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            Recent Chats
+          <div className="px-4 py-3 text-sm font-medium text-gray-500 flex items-center">
+            <FiMessageSquare className="mr-2" />
+            Chat History
           </div>
-          <div className="space-y-1 px-2">
-            {chatHistory.map((chat) => (
-              <button
-                key={chat.id}
-                onClick={() => loadChat(chat.id)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate ${
-                  activeChat === chat.id 
-                    ? 'bg-blue-100 text-blue-800' 
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                {chat.title}
-              </button>
-            ))}
+          <div className="px-2 space-y-1">
+            <AnimatePresence>
+              {chatHistory.map((chat) => (
+                <motion.div
+                  key={chat.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="group relative"
+                >
+                  <div className="flex items-center gap-2">
+                    <motion.button
+                      onClick={() => deleteChat(chat.id)}
+                      className="p-1 hover:bg-red-50 rounded-full ml-1"
+                      whileHover={{ scale: 1.1 }}
+                    >
+                      <FiTrash2 className="text-red-400 text-sm" />
+                    </motion.button>
+
+                    <button
+                      onClick={() => loadChat(chat.id)}
+                      className={`flex-1 text-left px-2 py-2 rounded-lg text-sm flex items-center justify-between ${
+                        activeChat === chat.id 
+                          ? 'bg-blue-50 text-blue-800' 
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {editingChatId === chat.id ? (
+                        <input
+                          type="text"
+                          value={editedTitle}
+                          onChange={(e) => setEditedTitle(e.target.value)}
+                          onBlur={() => handleRenameChat(chat.id, editedTitle)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleRenameChat(chat.id, editedTitle)}
+                          className="bg-transparent outline-none w-full"
+                          autoFocus
+                        />
+                      ) : (
+                        <div className="flex items-center justify-between w-full">
+                          <span className="truncate" onClick={() => {
+                            setEditingChatId(chat.id);
+                            setEditedTitle(chat.title);
+                          }}>
+                            {chat.title}
+                          </span>
+                          <FiClock className="text-gray-400 text-xs ml-2" />
+                        </div>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="border-b border-gray-200 p-4 flex justify-between items-center bg-white">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-800">HealthAI Assistant</h1>
-            <p className="text-sm text-gray-600">Powered by WHO Standards & Medical Research</p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+        <motion.header 
+          className="border-b border-gray-200 p-4 flex justify-between items-center bg-white"
+          initial={{ y: -20 }}
+          animate={{ y: 0 }}
+        >
+          <div className="flex items-center gap-2">
+            <RiMentalHealthLine className="text-3xl text-blue-600" />
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">HealthAI Pro</h1>
+              <p className="text-sm text-gray-600">Advanced Medical Intelligence Platform</p>
             </div>
           </div>
-        </header>
+          <div className="flex items-center gap-3">
+            <motion.button 
+              className="p-2 hover:bg-gray-100 rounded-lg"
+              whileHover={{ scale: 1.05 }}
+            >
+              <FiSettings className="text-gray-600" />
+            </motion.button>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 flex items-center justify-center text-white">
+              <FiUser className="text-xl" />
+            </div>
+          </div>
+        </motion.header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto py-4 space-y-4 bg-gray-50">
-          {messages.map((message, index) => (
-            <Message key={index} role={message.role} content={message.content} />
-          ))}
+        <div className="flex-1 overflow-y-auto py-8 space-y-6 px-4">
+          <AnimatePresence>
+            {messages.map((message, index) => (
+              <Message key={index} role={message.role} content={message.content} />
+            ))}
+          </AnimatePresence>
+          
           {isLoading && (
-            <div className="flex justify-start px-4">
-              <div className="bg-gray-200 text-gray-800 rounded-lg px-4 py-2">
-                <div className="flex space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-gray-600 animate-bounce" />
-                  <div className="w-2 h-2 rounded-full bg-gray-600 animate-bounce delay-100" />
-                  <div className="w-2 h-2 rounded-full bg-gray-600 animate-bounce delay-200" />
-                </div>
+            <motion.div 
+              className="flex justify-start px-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <div className="bg-white shadow-sm rounded-xl px-4 py-3 flex items-center gap-2">
+                <motion.div
+                  animate={{ 
+                    rotate: [0, 360],
+                    transition: { repeat: Infinity, duration: 1.5 }
+                  }}
+                >
+                  <MdCircle className="text-blue-600 text-xs" />
+                </motion.div>
+                <span className="text-gray-600 text-sm">Analyzing your query...</span>
               </div>
-            </div>
+            </motion.div>
           )}
           <div ref={messagesEndRef} className="h-16" />
         </div>
 
-        {/* Input */}
-        <form onSubmit={handleSubmit} className="p-4 border-t bg-white">
-          <div className="flex gap-2 max-w-4xl mx-auto">
+        {/* Input Form */}
+        <form onSubmit={handleSubmit} className="p-4 bg-white border-t">
+          <motion.div 
+            className="flex gap-2 max-w-4xl mx-auto relative"
+            whileHover={{ scale: 1.005 }}
+          >
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Describe your symptoms..."
-              className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 text-gray-800"
+              placeholder="Describe symptoms or ask a health question..."
+              className="flex-1 p-4 pr-14 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 text-gray-800 shadow-sm"
               disabled={isLoading}
             />
-            <button
+            <motion.button
               type="submit"
-              className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               disabled={isLoading || !input.trim()}
             >
-              {isLoading ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Sending
-                </span>
-              ) : (
-                "Send"
-              )}
-            </button>
-          </div>
+              <FiArrowUp className="text-lg" />
+            </motion.button>
+          </motion.div>
         </form>
       </div>
     </div>
